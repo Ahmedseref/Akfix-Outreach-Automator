@@ -1,0 +1,5 @@
+{
+  "name": "Akfix Outreach Automator",
+  "description": "Automated cold messaging tool for Canton Fair leads. Extracts customer data from list images and generates personalized emails/WhatsApp messages using Gemini AI.",
+  "requestFramePermissions": []
+}
