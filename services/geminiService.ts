@@ -105,27 +105,39 @@ export const extractDataFromText = async (textData: string): Promise<Customer[]>
 export const generateDraft = async (customer: Customer, language: 'en' | 'ar' = 'en'): Promise<GeneratedMessage> => {
   try {
     const isArabic = language === 'ar';
-    const repName = customer.representative || (isArabic ? "يا أفندم" : "Sir/Madam");
     
     // Instructions for WhatsApp style
     const whatsappInstructions = isArabic 
       ? `
-        Create a WhatsApp sequence in Arabic (Egyptian/White Arabic business tone). 
-        It must consist of 4-5 short, separate lines suitable for instant messaging.
-        NO timestamps, just the text content.
-        Start STRICTLY with "السلام عليكم".
+        Create a WhatsApp sequence in Arabic.
+        Tone: Friendly, Respectful, Egyptian/White Arabic Business Style.
         
-        Example flow:
-        Line 1: السلام عليكم ورحمة الله وبركاته
-        Line 2: كيف الحال أستاذ [Name]؟
-        Line 3: أنا أحمد شرف من شركة Akkim construction chemicals
-        Line 4: حضرتك زرتنا في معرض كانتون
-        Line 5: [Refer to specific notes: e.g., وكنت مهتم بمنتجات السليكون]
+        Salutation Logic (Crucial):
+        - Analyze "Recipient Name" and "Recipient Email".
+        - If "Recipient Name" is missing or generic, try to extract the First Name from "Recipient Email" (e.g. ahmad.ghazzoul@... -> Name is Ahmed).
+        - Use respectful titles: "أستاذ [First Name]" (Mr.) or "باشمهندس [First Name]" (if company/notes imply engineering/construction).
+        - ALWAYS use "حضرتك" (Hadretak) instead of "انت" (Enta) to show respect.
+        - If the name is completely unknown, use "يا فندم".
+
+        Format: 4-5 short, distinct lines suitable for chat.
+        START STRICTLY WITH: "السلام عليكم" or "السلام عليكم ورحمة الله وبركاته".
+        
+        Follow this flow:
+        1. Greeting (Salam).
+        2. Respectful check-in (e.g., "أخبار حضرتك إيه يا أستاذ [Name]" / "يا رب حضرتك تكون بخير").
+        3. Identity (e.g., "مع حضرتك أحمد شرف من شركة Akkim Construction Chemicals").
+        4. Context (e.g., "حضرتك شرفتنا في معرض كانتون").
+        5. Specific Need (Directly reference the notes, e.g., "بخصوص اهتمام حضرتك بـ [Product]" / "بخصوص استفسار حضرتك عن [Product]").
+        
+        Do not be overly formal like a government letter, but be respectful like a high-end sales professional.
       `
       : `
         Create a WhatsApp sequence in English.
         It must be CASUAL, DIRECT, and consist of 4-5 short, separate lines. 
         NO "Dear...", NO "Sincerely". 
+        
+        Name Logic:
+        - If "Recipient Name" is missing, try to extract the First Name from "Recipient Email".
         
         Example flow:
         Line 1: Hello [Name]
@@ -136,12 +148,17 @@ export const generateDraft = async (customer: Customer, language: 'en' | 'ar' = 
       `;
 
     const emailInstructions = isArabic
-      ? `Write a professional business email in Arabic. Subject should be clear.`
-      : `Write a professional business email in English. Subject should be catchy.`;
+      ? `Write a professional business email in Arabic.
+         Addressing: Start with "السيد الأستاذ/ [Name]" or "المهندس/ [Name]" (Infer name from email if Rep Name is missing).
+         Subject Line: Create a specific subject line referencing the product/interest from the notes (e.g. "بخصوص استفساركم عن [Product Name]").`
+      : `Write a professional business email in English.
+         Subject Line: Create a high-converting, attention-grabbing subject line that explicitly references the specific product or interest mentioned in the notes (e.g. "Pricing for [Product Name] - Canton Fair", "Your interest in [Product] at Akkim stand"). Avoid generic subjects like "Hello" or "Follow up".`;
 
     const prompt = `
       Sender: Ahmed Seref, Export Executive at Akkim Construction Chemicals (Akfix.com).
-      Recipient: ${repName} at ${customer.company}.
+      Recipient Name: "${customer.representative || ''}".
+      Recipient Email: "${customer.email || ''}".
+      Company: "${customer.company}".
       Specific Notes from Fair: "${customer.notes}".
       
       Task:

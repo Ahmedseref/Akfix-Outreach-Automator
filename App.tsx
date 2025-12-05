@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { CustomerCard } from './components/CustomerCard';
+import { SavedTable } from './components/SavedTable';
 import { extractDataFromImage, extractDataFromText, generateDraft } from './services/geminiService';
 import { Customer, GeneratedMessage } from './types';
 
@@ -8,6 +9,9 @@ function App() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [generatedMessages, setGeneratedMessages] = useState<Record<string, GeneratedMessage>>({});
   
+  // New state for saved/archived customers
+  const [savedItems, setSavedItems] = useState<{customer: Customer, message: GeneratedMessage}[]>([]);
+
   const [status, setStatus] = useState<{
     stage: 'idle' | 'uploading' | 'extracting' | 'reviewing';
     loading: boolean;
@@ -80,6 +84,33 @@ function App() {
     }
   };
 
+  const handleDelete = (id: string) => {
+    setCustomers(prev => prev.filter(c => c.id !== id));
+    // Also cleanup message if exists
+    if (generatedMessages[id]) {
+      const newMessages = { ...generatedMessages };
+      delete newMessages[id];
+      setGeneratedMessages(newMessages);
+    }
+  };
+
+  const handleSave = (id: string) => {
+    const customer = customers.find(c => c.id === id);
+    const message = generatedMessages[id];
+
+    if (customer && message) {
+      // Add to saved items
+      setSavedItems(prev => [...prev, { customer, message }]);
+      
+      // Remove from active list
+      handleDelete(id);
+    }
+  };
+
+  const handleDeleteSaved = (id: string) => {
+    setSavedItems(prev => prev.filter(item => item.customer.id !== id));
+  };
+
   return (
     <div className="min-h-screen pb-12">
       {/* Navbar */}
@@ -149,8 +180,8 @@ function App() {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm sticky top-20 z-10">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Extracted Contacts ({customers.length})</h2>
-                <p className="text-sm text-gray-500">Review the data and generate drafts.</p>
+                <h2 className="text-lg font-bold text-gray-900">Active Contacts ({customers.length})</h2>
+                <p className="text-sm text-gray-500">Review the data, generate drafts, and save to archive.</p>
               </div>
               <div className="flex gap-3">
                 <button 
@@ -176,16 +207,25 @@ function App() {
             </div>
 
             <div className="grid grid-cols-1 gap-6">
+              {customers.length === 0 && savedItems.length === 0 ? (
+                <div className="text-center text-gray-500 py-12">No contacts loaded.</div>
+              ) : null}
+
               {customers.map((customer) => (
                 <CustomerCard 
                   key={customer.id} 
                   customer={customer} 
                   onGenerate={handleGenerateDraft}
+                  onDelete={handleDelete}
+                  onSave={handleSave}
                   generatedMessage={generatedMessages[customer.id]}
                   isGenerating={analyzingIds.has(customer.id)}
                 />
               ))}
             </div>
+
+            {/* Saved Items Table */}
+            <SavedTable items={savedItems} onDelete={handleDeleteSaved} />
           </div>
         )}
       </main>

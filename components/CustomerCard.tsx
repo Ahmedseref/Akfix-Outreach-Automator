@@ -4,13 +4,17 @@ import { Customer, GeneratedMessage } from '../types';
 interface CustomerCardProps {
   customer: Customer;
   onGenerate: (customer: Customer, lang: 'en' | 'ar') => void;
+  onDelete: (id: string) => void;
+  onSave: (id: string) => void;
   generatedMessage?: GeneratedMessage;
   isGenerating: boolean;
 }
 
 export const CustomerCard: React.FC<CustomerCardProps> = ({ 
   customer, 
-  onGenerate, 
+  onGenerate,
+  onDelete,
+  onSave,
   generatedMessage,
   isGenerating 
 }) => {
@@ -26,54 +30,74 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   };
 
   // Helper for WhatsApp link
-  const getWhatsappLink = () => {
+  const getWhatsappLink = (isMobileApp: boolean = false) => {
     if (!generatedMessage) return '#';
     const cleanPhone = customer.phone.replace(/[^0-9]/g, '');
     // Use the specific whatsapp body if available, otherwise fallback to generic body
     const bodyToUse = generatedMessage.whatsappBody || generatedMessage.body;
     const text = encodeURIComponent(bodyToUse);
+    
+    if (isMobileApp) {
+        // Direct app scheme, works better on mobile for opening the app directly
+        return `whatsapp://send?phone=${cleanPhone}&text=${text}`;
+    }
+    // Standard web link
     return `https://wa.me/${cleanPhone}?text=${text}`;
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow relative group">
       {/* Header */}
       <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
+        <div className="flex-1">
           <h3 className="font-bold text-gray-900 text-lg">{customer.company || "Unknown Company"}</h3>
           <p className="text-sm text-gray-600 flex items-center gap-2">
             <span className="font-medium">{customer.representative || "No Rep Name"}</span>
             {customer.country && <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">{customer.country}</span>}
           </p>
         </div>
-        {!generatedMessage && (
-          <div className="flex items-center gap-2">
-            {/* Language Toggle */}
-            <div className="flex bg-white rounded-md border border-gray-300 overflow-hidden">
-               <button 
-                onClick={() => setSelectedLang('en')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${selectedLang === 'en' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}
-               >
-                 🇺🇸 EN
-               </button>
-               <div className="w-px bg-gray-300"></div>
-               <button 
-                onClick={() => setSelectedLang('ar')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${selectedLang === 'ar' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}
-               >
-                 🇪🇬 AR
-               </button>
-            </div>
-            
-            <button
-              onClick={() => onGenerate(customer, selectedLang)}
-              disabled={isGenerating}
-              className="text-xs bg-red-600 text-white px-4 py-1.5 rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
+        
+        <div className="flex items-center gap-2">
+            {!generatedMessage && (
+                <>
+                {/* Language Toggle */}
+                <div className="flex bg-white rounded-md border border-gray-300 overflow-hidden">
+                    <button 
+                        onClick={() => setSelectedLang('en')}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${selectedLang === 'en' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        🇺🇸 EN
+                    </button>
+                    <div className="w-px bg-gray-300"></div>
+                    <button 
+                        onClick={() => setSelectedLang('ar')}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${selectedLang === 'ar' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        🇪🇬 AR
+                    </button>
+                </div>
+                
+                <button
+                    onClick={() => onGenerate(customer, selectedLang)}
+                    disabled={isGenerating}
+                    className="text-xs bg-red-600 text-white px-4 py-1.5 rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
+                >
+                    {isGenerating ? 'Drafting...' : 'Generate Draft'}
+                </button>
+                </>
+            )}
+
+            {/* Delete Button */}
+            <button 
+                onClick={() => onDelete(customer.id)}
+                className="ml-2 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                title="Delete Customer"
             >
-              {isGenerating ? 'Drafting...' : 'Generate Draft'}
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
             </button>
-          </div>
-        )}
+        </div>
       </div>
 
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -156,14 +180,24 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                     Open Mail
                   </a>
                 ) : (
-                  <a 
-                    href={getWhatsappLink()}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 bg-green-600 text-white text-center py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
-                  >
-                    Open WhatsApp
-                  </a>
+                  <div className="flex-1 flex gap-2">
+                    <a 
+                        href={getWhatsappLink(false)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 bg-green-600 text-white text-center py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+                        title="Open in WhatsApp Web"
+                    >
+                        Web
+                    </a>
+                    <a 
+                        href={getWhatsappLink(true)}
+                        className="flex-1 bg-green-800 text-white text-center py-2 rounded-md text-sm font-medium hover:bg-green-900 transition-colors"
+                        title="Open in WhatsApp Mobile App"
+                    >
+                        App
+                    </a>
+                  </div>
                 )}
                 
                 <button
@@ -172,6 +206,17 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                   title="Regenerate"
                 >
                   ↻
+                </button>
+
+                <button
+                  onClick={() => onSave(customer.id)}
+                  className="px-3 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 flex items-center gap-1"
+                  title="Save & Archive to Table"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  Save
                 </button>
               </div>
             </div>
