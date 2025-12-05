@@ -52,9 +52,15 @@ export const extractDataFromImage = async (base64Image: string): Promise<Custome
 
     if (response.text) {
       const parsedData = JSON.parse(response.text);
-      // Add IDs for React keys
+      // Map and ensure defaults to prevent undefined errors
       return parsedData.map((c: any, index: number) => ({
-        ...c,
+        company: c.company || "",
+        representative: c.representative || "",
+        phone: c.phone || "",
+        country: c.country || "",
+        email: c.email || "",
+        website: c.website || "",
+        notes: c.notes || "",
         id: `cust-img-${Date.now()}-${index}`,
       }));
     }
@@ -90,8 +96,15 @@ export const extractDataFromText = async (textData: string): Promise<Customer[]>
 
     if (response.text) {
       const parsedData = JSON.parse(response.text);
+      // Map and ensure defaults to prevent undefined errors
       return parsedData.map((c: any, index: number) => ({
-        ...c,
+        company: c.company || "",
+        representative: c.representative || "",
+        phone: c.phone || "",
+        country: c.country || "",
+        email: c.email || "",
+        website: c.website || "",
+        notes: c.notes || "",
         id: `cust-txt-${Date.now()}-${index}`,
       }));
     }

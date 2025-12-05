@@ -20,6 +20,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'email' | 'whatsapp'>('email');
   const [selectedLang, setSelectedLang] = useState<'en' | 'ar'>('en');
+  const [copied, setCopied] = useState(false);
 
   // Helper to construct mailto link
   const getMailtoLink = () => {
@@ -30,19 +31,45 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   };
 
   // Helper for WhatsApp link
-  const getWhatsappLink = (isMobileApp: boolean = false) => {
+  const getWhatsappLink = (type: 'web' | 'app' | 'business') => {
     if (!generatedMessage) return '#';
-    const cleanPhone = customer.phone.replace(/[^0-9]/g, '');
-    // Use the specific whatsapp body if available, otherwise fallback to generic body
+    // Ensure phone is treated as a string and handle empty/undefined values
+    const phoneVal = customer.phone || '';
+    const cleanPhone = phoneVal.replace(/[^0-9]/g, '');
     const bodyToUse = generatedMessage.whatsappBody || generatedMessage.body;
     const text = encodeURIComponent(bodyToUse);
     
-    if (isMobileApp) {
-        // Direct app scheme, works better on mobile for opening the app directly
+    switch (type) {
+      case 'business':
+        // Android intent to force WhatsApp Business
+        return `intent://send?phone=${cleanPhone}&text=${text}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+      case 'app':
+        // Standard App scheme
         return `whatsapp://send?phone=${cleanPhone}&text=${text}`;
+      case 'web':
+      default:
+        // Universal link (usually handled by browser/OS preference)
+        return `https://wa.me/${cleanPhone}?text=${text}`;
     }
-    // Standard web link
-    return `https://wa.me/${cleanPhone}?text=${text}`;
+  };
+
+  const handleCopy = async () => {
+    if (!generatedMessage) return;
+
+    let textToCopy = '';
+    if (activeTab === 'email') {
+        textToCopy = `Subject: ${generatedMessage.subject}\n\n${generatedMessage.body}`;
+    } else {
+        textToCopy = generatedMessage.whatsappBody || generatedMessage.body;
+    }
+
+    try {
+        await navigator.clipboard.writeText(textToCopy);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+        console.error("Failed to copy text", err);
+    }
   };
 
   return (
@@ -118,7 +145,12 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
            {customer.website && (
             <div className="flex items-start gap-2">
               <span className="text-gray-400 w-4">🌐</span>
-              <a href={`https://${customer.website.replace('http://', '').replace('https://', '')}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate">
+              <a 
+                href={`https://${(customer.website || '').toString().replace('http://', '').replace('https://', '')}`} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="text-blue-600 hover:underline truncate"
+              >
                 {customer.website}
               </a>
             </div>
@@ -133,18 +165,41 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
         <div className="border-t md:border-t-0 md:border-l border-gray-100 md:pl-4 pt-4 md:pt-0">
           {generatedMessage ? (
             <div className="h-full flex flex-col">
-              <div className="flex gap-2 mb-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setActiveTab('email')}
+                    className={`text-xs px-3 py-1 rounded-full border transition-colors ${activeTab === 'email' ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}
+                  >
+                    ✉️ Email
+                  </button>
+                   <button 
+                    onClick={() => setActiveTab('whatsapp')}
+                    className={`text-xs px-3 py-1 rounded-full border transition-colors ${activeTab === 'whatsapp' ? 'bg-green-50 border-green-200 text-green-700 font-medium' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}
+                  >
+                    💬 WhatsApp
+                  </button>
+                </div>
                 <button 
-                  onClick={() => setActiveTab('email')}
-                  className={`text-xs px-3 py-1 rounded-full border transition-colors ${activeTab === 'email' ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}
+                  onClick={handleCopy}
+                  className="text-xs flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors px-2 py-1 rounded hover:bg-gray-50"
+                  title="Copy to clipboard"
                 >
-                  ✉️ Email
-                </button>
-                 <button 
-                  onClick={() => setActiveTab('whatsapp')}
-                  className={`text-xs px-3 py-1 rounded-full border transition-colors ${activeTab === 'whatsapp' ? 'bg-green-50 border-green-200 text-green-700 font-medium' : 'border-transparent text-gray-500 hover:bg-gray-100'}`}
-                >
-                  💬 WhatsApp
+                  {copied ? (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-green-600">
+                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-green-600 font-medium">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5" />
+                      </svg>
+                      <span>Copy</span>
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -180,22 +235,29 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                     Open Mail
                   </a>
                 ) : (
-                  <div className="flex-1 flex gap-2">
+                  <div className="flex-1 flex gap-1.5">
                     <a 
-                        href={getWhatsappLink(false)}
+                        href={getWhatsappLink('web')}
                         target="_blank"
                         rel="noreferrer"
                         className="flex-1 bg-green-600 text-white text-center py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
-                        title="Open in WhatsApp Web"
+                        title="Open in WhatsApp Web (Desktop)"
                     >
                         Web
                     </a>
                     <a 
-                        href={getWhatsappLink(true)}
+                        href={getWhatsappLink('app')}
                         className="flex-1 bg-green-800 text-white text-center py-2 rounded-md text-sm font-medium hover:bg-green-900 transition-colors"
-                        title="Open in WhatsApp Mobile App"
+                        title="Open Standard WhatsApp App"
                     >
                         App
+                    </a>
+                    <a 
+                        href={getWhatsappLink('business')}
+                        className="flex-1 bg-teal-700 text-white text-center py-2 rounded-md text-sm font-medium hover:bg-teal-800 transition-colors"
+                        title="Force WhatsApp Business (Android)"
+                    >
+                        Biz
                     </a>
                   </div>
                 )}
