@@ -72,6 +72,17 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
     }
   };
 
+  const handleLangSwitch = (lang: 'en' | 'ar') => {
+    if (isGenerating || lang === selectedLang) return;
+    
+    setSelectedLang(lang);
+    
+    // If we already have a message, regenerate immediately in the new language
+    if (generatedMessage) {
+        onGenerate(customer, lang);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow relative group">
       {/* Header */}
@@ -85,25 +96,27 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
+            {/* Language Toggle - Always Visible */}
+            <div className="flex bg-white rounded-md border border-gray-300 overflow-hidden">
+                <button 
+                    onClick={() => handleLangSwitch('en')}
+                    disabled={isGenerating}
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${selectedLang === 'en' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50 disabled:opacity-50'}`}
+                >
+                    🇺🇸 EN
+                </button>
+                <div className="w-px bg-gray-300"></div>
+                <button 
+                    onClick={() => handleLangSwitch('ar')}
+                    disabled={isGenerating}
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${selectedLang === 'ar' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50 disabled:opacity-50'}`}
+                >
+                    🇪🇬 AR
+                </button>
+            </div>
+
+            {/* Generate Button - Only if no message exists */}
             {!generatedMessage && (
-                <>
-                {/* Language Toggle */}
-                <div className="flex bg-white rounded-md border border-gray-300 overflow-hidden">
-                    <button 
-                        onClick={() => setSelectedLang('en')}
-                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${selectedLang === 'en' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}
-                    >
-                        🇺🇸 EN
-                    </button>
-                    <div className="w-px bg-gray-300"></div>
-                    <button 
-                        onClick={() => setSelectedLang('ar')}
-                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${selectedLang === 'ar' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}
-                    >
-                        🇪🇬 AR
-                    </button>
-                </div>
-                
                 <button
                     onClick={() => onGenerate(customer, selectedLang)}
                     disabled={isGenerating}
@@ -111,7 +124,6 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                 >
                     {isGenerating ? 'Drafting...' : 'Generate Draft'}
                 </button>
-                </>
             )}
 
             {/* Delete Button */}
@@ -265,9 +277,10 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                 <button
                   onClick={() => onGenerate(customer, selectedLang)}
                   className="px-3 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200"
-                  title="Regenerate"
+                  title={`Regenerate in ${selectedLang === 'en' ? 'English' : 'Arabic'}`}
+                  disabled={isGenerating}
                 >
-                  ↻
+                  {isGenerating ? '...' : '↻'}
                 </button>
 
                 <button
