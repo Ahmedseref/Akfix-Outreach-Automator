@@ -16,6 +16,12 @@ export interface GeneratedMessage {
   whatsappBody?: string;
 }
 
+export interface GenerationContext {
+  senderCompany: string;
+  exhibitionName: string;
+  exhibitionLocation: string;
+}
+
 export interface ProcessingStatus {
   isAnalyzing: boolean;
   isGenerating: boolean;

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { Customer, GeneratedMessage } from "../types";
+import { Customer, GeneratedMessage, GenerationContext } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -115,9 +115,14 @@ export const extractDataFromText = async (textData: string): Promise<Customer[]>
   }
 };
 
-export const generateDraft = async (customer: Customer, language: 'en' | 'ar' = 'en'): Promise<GeneratedMessage> => {
+export const generateDraft = async (
+  customer: Customer, 
+  context: GenerationContext,
+  language: 'en' | 'ar' = 'en'
+): Promise<GeneratedMessage> => {
   try {
     const isArabic = language === 'ar';
+    const { senderCompany, exhibitionName, exhibitionLocation } = context;
     
     // Instructions for WhatsApp style
     const whatsappInstructions = isArabic 
@@ -138,8 +143,8 @@ export const generateDraft = async (customer: Customer, language: 'en' | 'ar' = 
         Follow this flow:
         1. Greeting (Salam).
         2. Respectful check-in (e.g., "أخبار حضرتك إيه يا أستاذ [Name]" / "يا رب حضرتك تكون بخير").
-        3. Identity (e.g., "مع حضرتك أحمد شرف من شركة Akkim Construction Chemicals").
-        4. Context (e.g., "حضرتك شرفتنا في معرض كانتون").
+        3. Identity (e.g., "مع حضرتك أحمد شرف من شركة ${senderCompany}").
+        4. Context (e.g., "حضرتك شرفتنا في معرض ${exhibitionName}").
         5. Specific Need (Directly reference the notes, e.g., "بخصوص اهتمام حضرتك بـ [Product]" / "بخصوص استفسار حضرتك عن [Product]").
         
         Do not be overly formal like a government letter, but be respectful like a high-end sales professional.
@@ -155,24 +160,27 @@ export const generateDraft = async (customer: Customer, language: 'en' | 'ar' = 
         Example flow:
         Line 1: Hello [Name]
         Line 2: How is everything going?
-        Line 3: This is Ahmed Seref from Akkim Construction Chemicals
-        Line 4: We met at the Canton Fair
+        Line 3: This is Ahmed Seref from ${senderCompany}
+        Line 4: We met at the ${exhibitionName}
         Line 5: [Refer to specific notes: e.g., You asked for the MDF kit prices]
       `;
 
     const emailInstructions = isArabic
       ? `Write a professional business email in Arabic.
          Addressing: Start with "السيد الأستاذ/ [Name]" or "المهندس/ [Name]" (Infer name from email if Rep Name is missing).
-         Subject Line: Create a specific subject line referencing the product/interest from the notes (e.g. "بخصوص استفساركم عن [Product Name]").`
+         Subject Line: Create a specific subject line referencing the product/interest from the notes (e.g. "بخصوص استفساركم عن [Product Name] - ${exhibitionName}").
+         Context: Mention we met at ${exhibitionName} in ${exhibitionLocation}.`
       : `Write a professional business email in English.
-         Subject Line: Create a high-converting, attention-grabbing subject line that explicitly references the specific product or interest mentioned in the notes (e.g. "Pricing for [Product Name] - Canton Fair", "Your interest in [Product] at Akkim stand"). Avoid generic subjects like "Hello" or "Follow up".`;
+         Subject Line: Create a high-converting, attention-grabbing subject line that explicitly references the specific product or interest mentioned in the notes (e.g. "Pricing for [Product Name] - ${exhibitionName}", "Your interest in [Product] at ${senderCompany} stand"). Avoid generic subjects like "Hello" or "Follow up".
+         Context: Mention we met at ${exhibitionName} in ${exhibitionLocation}.`;
 
     const prompt = `
-      Sender: Ahmed Seref, Export Executive at Akkim Construction Chemicals (Akfix.com).
+      Sender: Ahmed Seref, Export Executive at ${senderCompany} (Akfix.com).
       Recipient Name: "${customer.representative || ''}".
       Recipient Email: "${customer.email || ''}".
       Company: "${customer.company}".
       Specific Notes from Fair: "${customer.notes}".
+      Campaign Context: Exhibition "${exhibitionName}" in "${exhibitionLocation}".
       
       Task:
       1. ${emailInstructions}
@@ -217,7 +225,7 @@ export const generateDraft = async (customer: Customer, language: 'en' | 'ar' = 
   } catch (error) {
     console.error("Generation error:", error);
     return {
-      subject: "Follow up - Akfix",
+      subject: "Follow up",
       body: "Error generating draft.",
       type: 'email'
     };

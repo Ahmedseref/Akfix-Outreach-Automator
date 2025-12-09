@@ -3,12 +3,19 @@ import { FileUpload } from './components/FileUpload';
 import { CustomerCard } from './components/CustomerCard';
 import { SavedTable } from './components/SavedTable';
 import { extractDataFromImage, extractDataFromText, generateDraft } from './services/geminiService';
-import { Customer, GeneratedMessage } from './types';
+import { Customer, GeneratedMessage, GenerationContext } from './types';
 
 function App() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [generatedMessages, setGeneratedMessages] = useState<Record<string, GeneratedMessage>>({});
   
+  // Settings for the campaign
+  const [context, setContext] = useState<GenerationContext>({
+    senderCompany: "Akkim Construction Chemicals",
+    exhibitionName: "Canton Fair",
+    exhibitionLocation: "Guangzhou, China"
+  });
+
   // New state for saved/archived customers
   const [savedItems, setSavedItems] = useState<{customer: Customer, message: GeneratedMessage}[]>([]);
 
@@ -56,7 +63,8 @@ function App() {
     setAnalyzingIds(prev => new Set(prev).add(customer.id));
     
     try {
-      const message = await generateDraft(customer, language);
+      // Pass the current context values to the generator
+      const message = await generateDraft(customer, context, language);
       setGeneratedMessages(prev => ({
         ...prev,
         [customer.id]: message
@@ -70,7 +78,7 @@ function App() {
         return next;
       });
     }
-  }, []);
+  }, [context]);
 
   const handleGenerateAll = async () => {
     // Generate for all that don't have one yet, defaulting to English for bulk
@@ -135,6 +143,49 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         
+        {/* Campaign Settings */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-gray-400">
+              <path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clipRule="evenodd" />
+            </svg>
+            Campaign Configuration
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Company Name</label>
+              <input 
+                type="text" 
+                value={context.senderCompany}
+                onChange={(e) => setContext(prev => ({...prev, senderCompany: e.target.value}))}
+                className="w-full text-sm border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
+                placeholder="e.g. Akkim Construction Chemicals"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Exhibition Name</label>
+              <input 
+                type="text" 
+                value={context.exhibitionName}
+                onChange={(e) => setContext(prev => ({...prev, exhibitionName: e.target.value}))}
+                className="w-full text-sm border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
+                placeholder="e.g. Canton Fair"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Location</label>
+              <input 
+                type="text" 
+                value={context.exhibitionLocation}
+                onChange={(e) => setContext(prev => ({...prev, exhibitionLocation: e.target.value}))}
+                className="w-full text-sm border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
+                placeholder="e.g. Guangzhou, China"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">These details will be used to customize the email and WhatsApp drafts.</p>
+        </div>
+
         {/* Error Notification */}
         {status.error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r shadow-sm">
@@ -153,10 +204,10 @@ function App() {
 
         {/* Upload Section */}
         {status.stage === 'idle' || status.stage === 'extracting' ? (
-          <div className="text-center py-12">
+          <div className="text-center py-6">
              <h2 className="text-3xl font-bold text-gray-900 mb-4">Import Your Customer List</h2>
              <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-               Upload a clear photo or paste Excel data from your Canton Fair spreadsheet. Gemini AI will extract the details and prepare personalized messages.
+               Upload a clear photo or paste Excel data from your exhibition spreadsheet.
              </p>
              
              {status.loading ? (
