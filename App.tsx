@@ -59,6 +59,11 @@ function App() {
     }
   };
 
+  const handleCustomersLoaded = (loadedCustomers: Customer[]) => {
+    setCustomers(loadedCustomers);
+    setStatus({ stage: 'reviewing', loading: false, error: null });
+  };
+
   const handleGenerateDraft = useCallback(async (customer: Customer, language: 'en' | 'ar' = 'en') => {
     setAnalyzingIds(prev => new Set(prev).add(customer.id));
     
@@ -220,6 +225,7 @@ function App() {
                 <FileUpload 
                   onImageSelected={handleImageSelected} 
                   onTextSelected={handleTextSelected}
+                  onCustomersLoaded={handleCustomersLoaded}
                   isAnalyzing={status.loading} 
                 />
              )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Customer, GeneratedMessage } from '../types';
 
 interface CustomerCardProps {
@@ -22,6 +22,15 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   const [selectedLang, setSelectedLang] = useState<'en' | 'ar'>('en');
   const [copied, setCopied] = useState(false);
 
+  // Extract multiple phone numbers from the string
+  const phoneNumbers = useMemo(() => {
+    const raw = customer.phone || '';
+    if (!raw) return [];
+    // Split by comma, slash, ampersand, newline, or pipe
+    const splits = raw.split(/[,/&\n|]+/).map(s => s.trim()).filter(s => s.length > 3);
+    return splits;
+  }, [customer.phone]);
+
   // Helper to construct mailto link
   const getMailtoLink = () => {
     if (!generatedMessage) return '#';
@@ -30,26 +39,36 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
     return `mailto:${customer.email}?subject=${subject}&body=${body}`;
   };
 
-  // Helper for WhatsApp link
-  const getWhatsappLink = (type: 'web' | 'app' | 'business') => {
-    if (!generatedMessage) return '#';
-    // Ensure phone is treated as a string and handle empty/undefined values
-    const phoneVal = customer.phone || '';
-    const cleanPhone = phoneVal.replace(/[^0-9]/g, '');
+  // Helper for WhatsApp link - Now accepts specific phone number string
+  const getWhatsappLink = (phone: string, type: 'web' | 'app' | 'business') => {
+    if (!generatedMessage || !phone) return '#';
+    
+    let cleanPhone = phone.replace(/[^0-9+]/g, '');
+
+    // Auto-add + if missing
+    if (cleanPhone.startsWith('00')) {
+        cleanPhone = '+' + cleanPhone.substring(2);
+    } else if (!cleanPhone.startsWith('+')) {
+        cleanPhone = '+' + cleanPhone;
+    }
+
+    // Final clean for URL injection (strip + for consistency in protocols that dislike it)
+    const phoneForUrl = cleanPhone.replace('+', '');
+
     const bodyToUse = generatedMessage.whatsappBody || generatedMessage.body;
     const text = encodeURIComponent(bodyToUse);
     
     switch (type) {
       case 'business':
         // Android intent to force WhatsApp Business
-        return `intent://send?phone=${cleanPhone}&text=${text}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+        return `intent://send?phone=${phoneForUrl}&text=${text}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
       case 'app':
         // Standard App scheme
-        return `whatsapp://send?phone=${cleanPhone}&text=${text}`;
+        return `whatsapp://send?phone=${phoneForUrl}&text=${text}`;
       case 'web':
       default:
         // Universal link (usually handled by browser/OS preference)
-        return `https://wa.me/${cleanPhone}?text=${text}`;
+        return `https://wa.me/${phoneForUrl}?text=${text}`;
     }
   };
 
@@ -140,12 +159,46 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
       </div>
 
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Customer Details */}
-        <div className="text-sm space-y-2">
+        {/* Customer Details (Left Side) */}
+        <div className="text-sm space-y-3">
           {customer.phone && (
             <div className="flex items-start gap-2">
-              <span className="text-gray-400 w-4">📞</span>
-              <span className="text-gray-700 font-mono">{customer.phone}</span>
+              <span className="text-gray-400 w-4 mt-0.5">📞</span>
+              <div className="flex flex-col w-full">
+                {phoneNumbers.map((p, i) => (
+                    <div key={i} className="mb-3 last:mb-0 border-b last:border-0 border-gray-100 pb-2 last:pb-0">
+                        <span className="text-gray-900 font-mono font-bold block">{p}</span>
+                        {generatedMessage && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                <a 
+                                    href={getWhatsappLink(p, 'web')}
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="px-2 py-1 text-[10px] font-bold bg-green-50 text-green-700 rounded border border-green-200 hover:bg-green-100 transition-colors uppercase tracking-wide"
+                                    title="Open WhatsApp Web"
+                                >
+                                    Web
+                                </a>
+                                <a 
+                                    href={getWhatsappLink(p, 'app')}
+                                    className="px-2 py-1 text-[10px] font-bold bg-green-50 text-green-700 rounded border border-green-200 hover:bg-green-100 transition-colors uppercase tracking-wide"
+                                    title="Open WhatsApp App"
+                                >
+                                    App
+                                </a>
+                                <a 
+                                    href={getWhatsappLink(p, 'business')}
+                                    className="px-2 py-1 text-[10px] font-bold bg-teal-50 text-teal-700 rounded border border-teal-200 hover:bg-teal-100 transition-colors uppercase tracking-wide"
+                                    title="Open WhatsApp Business (Android)"
+                                >
+                                    Biz
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                ))}
+                {phoneNumbers.length === 0 && <span className="text-gray-400 italic">No phone numbers</span>}
+              </div>
             </div>
           )}
           {customer.email && (
@@ -173,7 +226,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
           </div>
         </div>
 
-        {/* Generated Message Area */}
+        {/* Generated Message Area (Right Side) */}
         <div className="border-t md:border-t-0 md:border-l border-gray-100 md:pl-4 pt-4 md:pt-0">
           {generatedMessage ? (
             <div className="h-full flex flex-col">
@@ -247,31 +300,9 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                     Open Mail
                   </a>
                 ) : (
-                  <div className="flex-1 flex gap-1.5">
-                    <a 
-                        href={getWhatsappLink('web')}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 bg-green-600 text-white text-center py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
-                        title="Open in WhatsApp Web (Desktop)"
-                    >
-                        Web
-                    </a>
-                    <a 
-                        href={getWhatsappLink('app')}
-                        className="flex-1 bg-green-800 text-white text-center py-2 rounded-md text-sm font-medium hover:bg-green-900 transition-colors"
-                        title="Open Standard WhatsApp App"
-                    >
-                        App
-                    </a>
-                    <a 
-                        href={getWhatsappLink('business')}
-                        className="flex-1 bg-teal-700 text-white text-center py-2 rounded-md text-sm font-medium hover:bg-teal-800 transition-colors"
-                        title="Force WhatsApp Business (Android)"
-                    >
-                        Biz
-                    </a>
-                  </div>
+                   <div className="flex-1 flex items-center justify-center text-xs text-gray-500 italic bg-gray-50 rounded border border-gray-200">
+                      ← Select phone link on left
+                   </div>
                 )}
                 
                 <button
